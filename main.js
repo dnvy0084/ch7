@@ -50,6 +50,9 @@ var Circle = function( radius, fillStyle )
 	this.x = 0;
 	this.y = 0;
 
+	this.scaleX = 1;
+	this.scaleY = 1;
+
 	this.radius = radius;
 	this.fillStyle = fillStyle;
 }
@@ -58,7 +61,8 @@ Circle.prototype =
 {
 	draw: function( context )
 	{
-		context.translate( this.x, this.y );
+		context.scale( this.scaleX, this.scaleY );
+		//context.translate( this.x, this.y );
 
 		context.fillStyle = this.fillStyle;
 		context.beginPath();
@@ -99,6 +103,7 @@ function testCircle()
 		stage.update();
 
 		circle.x++;
+		circle.scaleX = Math.cos( window.performance.now() / 10 );
 
 		id = requestAnimationFrame( render );
 	}
