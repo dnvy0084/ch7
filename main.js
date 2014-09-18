@@ -183,6 +183,9 @@ var Circle = function( radius, fillStyle )
 	this.x = 0;
 	this.y = 0;
 
+	this.scaleX = 1;
+	this.scaleY = 1;
+
 	this.vx = this.vy = 0;
 
 	this.radius = radius;
@@ -194,6 +197,7 @@ Circle.prototype =
 	draw: function( context )
 	{
 		context.translate( this.x, this.y );
+		context.scale( this.scaleX, this.scaleY );
 
 		context.fillStyle = this.fillStyle;
 		context.beginPath();
@@ -242,11 +246,105 @@ window.onload = function()
 
 	//testCircle();
 	//testEventDispatcher();
-	testPendulum();
+	//testPendulum();
 
+	testTween();
+}
+
+
+var Tween = function()
+{
 
 }
 
+Tween.to = function( target, delay, prop )
+{
+	var t = new Tween();
+
+	t.target = target;
+	t.delay = parseInt( delay * 1000 );
+	t.prop = prop;
+
+	t.start();
+
+	return t;
+}
+
+Tween.prototype = 
+{
+	start: function()
+	{
+		this.startVO = {};
+		this.now = parseInt( window.performance.now() );
+
+		for( var s in this.prop )
+		{
+			if( !this.target.hasOwnProperty( s ) ) continue;
+
+			this.startVO[s] = this.target[s];
+		}
+
+		this.reqId = requestAnimationFrame( this.update.bind( this ) );
+	},
+
+	update: function( ms )
+	{
+		ms = Math.min( this.delay, ms - this.now );
+
+		var a;
+		var b;
+		var t;
+
+		for( var s in this.startVO )
+		{
+			a = this.startVO[s];
+			b = this.prop[s];
+
+			t = this.prop.ease( ms, this.delay );
+
+			this.target[s] = a + t * ( b - a );
+		}
+
+		if( ms >= this.delay )
+			cancelAnimationFrame( this.reqId )
+		else
+			this.reqId = requestAnimationFrame( this.update.bind( this ) );
+	}
+}
+
+Tween.linear = function( current, total )
+{
+	return current / total;
+}
+
+Tween.easeIn = function( current, total )
+{
+	return Math.pow( current / total, 6 );
+}
+
+Tween.easeOut = function( current, total )
+{
+	return 1 - Math.pow( 1 - current / total, 6 );
+}
+
+//c / t – sin( c / t * 2pi ) / ( 2pi );
+Tween.easeInOut = function( current, total )
+{
+	return current / total - Math.sin( current / total * 2 * Math.PI ) / ( 2 * Math.PI );
+}
+
+
+
+function testTween()
+{
+	//Tween.to( cicle, 1, { x: 100, y: 100, ease: Tween.easeIn } );
+
+	var c = new Circle( 10, "#ff0000" );
+
+	stage.addChild( c );
+
+	Tween.to( c, 1, { x: 400, y: 400, scaleX: 2, scaleY: 2, ease: Tween.easeInOut } );
+}
 
 
 
