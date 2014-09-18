@@ -1,4 +1,60 @@
 
+var EventDispatcher = function()
+{
+	this.map = {};
+}
+
+EventDispatcher.prototype = 
+{
+	addEventListener: function( type, listener, scope )
+	{
+		// { type: [ listener, listener, list ...... ],
+		//   enterframe: [ list .... .] }
+
+		if( !this.hasEventListener( type ) )
+			this.map[ type ] = [];
+
+		var index = this.indexOf( type, listener );
+
+		if( index > -1 ) return;
+
+		this.map[ type ].push( { listener: listener, scope: scope } );
+	},
+
+	removeEventListener: function( type, listener )
+	{
+		var index = this.indexOf( type, listener );
+
+		if( index == -1 ) return;
+
+		this.map[ type ].splice( index, 1 );
+	},
+
+	hasEventListener: function( type )
+	{
+
+	},
+
+	dispatchEvent: function( event )
+	{
+
+	},
+
+	indexOf: function( type, listener )
+	{
+		if( !this.hasEventListener( type ) ) return -1;
+
+		for( var i = 0; i < this.map[ type ].length; i++ )
+		{
+			if( this.map[ type ].listener == listener )
+				return i;
+		}
+
+		return -1;
+	}
+}
+
+
 var Stage = function( context )
 {
 	this.context = context;
