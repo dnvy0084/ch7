@@ -1,4 +1,12 @@
 
+function extend( Super, Child )
+{
+	for( var s in Super.prototype )
+	{
+		Child.prototype[s] = Super.prototype[s];
+	}
+}
+
 var EventDispatcher = function()
 {
 	this.map = {};
@@ -32,12 +40,24 @@ EventDispatcher.prototype =
 
 	hasEventListener: function( type )
 	{
-
+		return this.map[ type ] != undefined && this.map[ type ].length > 0;
 	},
 
 	dispatchEvent: function( event )
 	{
+		//{ type: "test", args: 1234 }; 
 
+		var arr = this.map[ event.type ];
+
+		if( arr == undefined ) return;
+
+		event.target = this;
+
+		for( var i = 0; i < arr.length; i++ )
+		{
+			// { listener: listener, scope: scope };
+			arr[ i ].listener.apply( arr[i].scope, [event] );
+		}
 	},
 
 	indexOf: function( type, listener )
@@ -56,9 +76,13 @@ EventDispatcher.prototype =
 
 
 var Stage = function( context )
-{
+{	
+	EventDispatcher.apply( this, [] );
+
 	this.context = context;
 	this.children = [];
+
+	this.reqId = requestAnimationFrame( this.update.bind( this ) );
 }
 
 Stage.prototype = 
@@ -85,25 +109,33 @@ Stage.prototype =
 		return this.children.indexOf( child ) > -1;
 	},
 
-	update: function()
+	update: function( ms )
 	{
 		this.context.clearRect( 
 			0, 0, this.context.canvas.width, this.context.canvas.height );
 
 		for( var i = 0; i < this.children.length; i++ )
 		{
+			this.children[i].dispatchEvent( { type: "enterframe" } );
+
 			this.context.save();
 
 			this.children[i].draw( this.context );
 
 			this.context.restore();
 		}
+
+		this.reqId = requestAnimationFrame( this.update.bind( this ) );
 	}
 }
+
+extend( EventDispatcher, Stage );
 
 
 var Circle = function( radius, fillStyle )
 {
+	EventDispatcher.apply( this, [] );
+
 	this.x = 0;
 	this.y = 0;
 
@@ -124,6 +156,7 @@ Circle.prototype =
 	}
 }
 
+extend( EventDispatcher, Circle );
 
 
 
@@ -146,6 +179,22 @@ window.onload = function()
 	stage = new Stage( context );
 
 	testCircle();
+	//testEventDispatcher();
+}
+
+
+
+function testEventDispatcher()
+{
+	var e = new Circle();
+
+	function onTest( e )
+	{
+		console.log( e );
+	}
+
+	e.addEventListener( "test", onTest, this ); 
+	e.dispatchEvent( { type: "test", num: 1234 } );
 }
 
 
@@ -158,17 +207,12 @@ function testCircle()
 	c.x = 100;
 	c.y = 100;
 
-	stage.update();
-
-	function render()
+	function onEnter( e )
 	{
 		c.x++;
-		stage.update();
-
-		id = requestAnimationFrame( render );
 	}
 
-	var id = requestAnimationFrame( render );
+	c.addEventListener( "enterframe", onEnter ); 
 }
 
 
