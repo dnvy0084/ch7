@@ -24,7 +24,7 @@ EventDispatcher.prototype =
 
 		var index = this.indexOf( type, listener );
 
-		if( index == -1 ) return;
+		if( index > -1 ) return;
 
 		this.map[ type ].push( { listener: listener, scope: scope } );
 	},
