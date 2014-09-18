@@ -1,4 +1,39 @@
 
+// var Vector = function( x, y )
+// {
+// 	this.x = x;
+// 	this.y = y;
+// }
+
+// Vector.prototype = 
+// {
+// 	add: function( v )
+// 	{
+// 		this.x += v.x;
+// 		this.y += v.y;
+// 	},
+
+// 	sub: function( v )
+// 	{
+// 		this.x -= v.x;
+
+// 	},
+
+// 	dot: function( v )
+// 	{
+// 		return this.x * v.x + this.y * v.y;
+// 	},
+
+// 	normalize: function( v)
+// 	{
+// 		var len = Math.sqrt( this.x * this.x + y * y );
+
+// 		this.x /= len;
+// 		this.y /= len;
+// 	}
+// }
+
+
 function extend( Super, Child )
 {
 	for( var s in Super.prototype )
@@ -83,6 +118,14 @@ var Stage = function( context )
 	this.children = [];
 
 	this.reqId = requestAnimationFrame( this.update.bind( this ) );
+
+	this.__defineGetter__( 
+		"stageWidth", 
+		function(){ return this.context.canvas.width } );
+
+	this.__defineGetter__(
+		"stageHeight",
+		function(){ return this.context.canvas.height } );
 }
 
 Stage.prototype = 
@@ -93,6 +136,7 @@ Stage.prototype =
 			this.removeChild( child );
 
 		this.children.push( child );
+		child.stage = this;
 	},
 
 	removeChild: function( child )
@@ -101,7 +145,7 @@ Stage.prototype =
 
 		if( index == -1 ) return;
 
-		this.children.splice( index, 1 );
+		this.children.splice( index, 1 )[0].stage = null;
 	},
 
 	contains: function( child )
@@ -139,6 +183,8 @@ var Circle = function( radius, fillStyle )
 	this.x = 0;
 	this.y = 0;
 
+	this.vx = this.vy = 0;
+
 	this.radius = radius;
 	this.fillStyle = fillStyle;
 }
@@ -153,6 +199,22 @@ Circle.prototype =
 		context.beginPath();
 		context.arc( 0, 0, this.radius, 0, 2 * Math.PI );
 		context.fill();
+	},
+
+	onEnter: function( e )
+	{
+		this.x += this.vx;
+		this.y += this.vy;
+
+		this.vy += 0.15;
+	},
+
+	fire: function( v )
+	{
+		this.vx = vx;
+		this.vy = vy;
+
+		this.addEventListener( "enterframe", this.onEnter, this );
 	}
 }
 
@@ -178,8 +240,45 @@ window.onload = function()
 	context = canvas.getContext( "2d" );
 	stage = new Stage( context );
 
-	testCircle();
+	//testCircle();
 	//testEventDispatcher();
+	testPendulum();
+
+
+}
+
+
+
+
+function testPendulum()
+{
+	var c = new Circle( 10, "#ff0000" );
+
+	stage.addChild( c );
+
+	c.x = stage.stageWidth / 2;
+	c.y = stage.stageHeight / 2;
+
+	var len = 100;
+	var cx = stage.stageWidth / 2;
+	var cy = stage.stageHeight / 2 - len;
+	var t;
+	var t0 = Math.PI / 4;
+	var ang = 0;
+
+	function onEnter( e )
+	{
+		t = Math.PI / 2 + t0 * Math.cos( 2 * ang );
+
+		c.x = cx + len * Math.cos( t );
+		c.y = cy + len * Math.sin( t );
+
+		ang += 0.05;
+
+		t0 *= 0.995;
+	}
+
+	c.addEventListener( "enterframe", onEnter );
 }
 
 
@@ -200,19 +299,19 @@ function testEventDispatcher()
 
 function testCircle()
 {
-	var c = new Circle( 10, "#0000ff" );
-
-	stage.addChild( c );
-
-	c.x = 100;
-	c.y = 100;
-
-	function onEnter( e )
+	function onClick( e )
 	{
-		c.x++;
+		var c = new Circle( 10, "#0000ff" );
+
+		c.x = 0;
+		c.y = canvas.height;
+
+		c.fire( e.offsetX / 20, ( e.offsetY - canvas.height )/ 20 );
+
+		stage.addChild( c );
 	}
 
-	c.addEventListener( "enterframe", onEnter ); 
+	canvas.addEventListener( "click", onClick );
 }
 
 
