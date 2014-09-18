@@ -99,7 +99,7 @@ Stage.prototype =
 	{
 		var index = this.children.indexOf( child );
 
-		if( index > -1 ) return;
+		if( index == -1 ) return;
 
 		this.children.splice( index, 1 );
 	},
