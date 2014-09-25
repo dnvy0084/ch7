@@ -1,39 +1,4 @@
 
-// var Vector = function( x, y )
-// {
-// 	this.x = x;
-// 	this.y = y;
-// }
-
-// Vector.prototype = 
-// {
-// 	add: function( v )
-// 	{
-// 		this.x += v.x;
-// 		this.y += v.y;
-// 	},
-
-// 	sub: function( v )
-// 	{
-// 		this.x -= v.x;
-
-// 	},
-
-// 	dot: function( v )
-// 	{
-// 		return this.x * v.x + this.y * v.y;
-// 	},
-
-// 	normalize: function( v)
-// 	{
-// 		var len = Math.sqrt( this.x * this.x + y * y );
-
-// 		this.x /= len;
-// 		this.y /= len;
-// 	}
-// }
-
-
 function extend( Super, Child )
 {
 	for( var s in Super.prototype )
@@ -101,7 +66,7 @@ EventDispatcher.prototype =
 
 		for( var i = 0; i < this.map[ type ].length; i++ )
 		{
-			if( this.map[ type ].listener == listener )
+			if( this.map[ type ][i].listener == listener )
 				return i;
 		}
 
@@ -126,10 +91,72 @@ var Stage = function( context )
 	this.__defineGetter__(
 		"stageHeight",
 		function(){ return this.context.canvas.height } );
+
+	this.init();
 }
 
 Stage.prototype = 
 {
+	init: function()
+	{
+		this.offCanvas = document.createElement( "canvas" );
+		this.offContext = this.offCanvas.getContext( "2d" );
+
+		this.offCanvas.width = this.stageWidth;
+		this.offCanvas.height = this.stageHeight;
+
+		document.body.appendChild( this.offCanvas );
+
+		this.hexCount = 0;
+		this.dict = {};
+
+		this.current = null;
+		this.initEvents();
+	},
+
+	initEvents: function()
+	{
+		this.context.canvas.addEventListener( "mousemove", this.onMouseMove.bind( this ) );
+	},
+
+	onMouseMove: function( e )
+	{
+		var x = e.offsetX;
+		var y = e.offsetY;
+		var data = this.offContext.getImageData( x, y, 1, 1 ).data;
+
+		this.dispatchEvent( { type: "mousemove", x: x, y: y } );
+
+		if( data[3] == 0 ) 
+		{
+			if( this.current != null )
+			{
+				this.current.dispatchEvent( { type: "mouseout", x: x, y: y } );
+			}
+
+			return;
+		}
+
+		var color = data[0] << 16 | data[1] << 8 | data[2];
+		var hex = toHex( color );
+		var child = this.dict[ hex ];
+
+		if( child == null ) return;
+
+		if( this.current != child )
+		{
+			if( this.current != null )
+			{
+				this.current.dispatchEvent( { type: "mouseout", x: x, y: y } );
+			}
+
+			child.dispatchEvent( { type: "mouseover", x: x, y: y } );
+			this.current = child;
+		}
+
+		child.dispatchEvent( { type: "mousemove", x: x, y: y } );
+	},
+
 	addChild: function( child )
 	{
 		if( this.contains( child ) )
@@ -137,6 +164,12 @@ Stage.prototype =
 
 		this.children.push( child );
 		child.stage = this;
+
+		// #0000ff;
+		child.$hex = toHex( this.hexCount++ );
+		this.dict[ child.$hex ] = child;
+
+		console.log( child.$hex );
 	},
 
 	removeChild: function( child )
@@ -146,6 +179,7 @@ Stage.prototype =
 		if( index == -1 ) return;
 
 		this.children.splice( index, 1 )[0].stage = null;
+		//
 	},
 
 	contains: function( child )
@@ -158,6 +192,9 @@ Stage.prototype =
 		this.context.clearRect( 
 			0, 0, this.context.canvas.width, this.context.canvas.height );
 
+		this.offContext.clearRect(
+			0, 0, this.stageWidth, this.stageHeight );
+
 		for( var i = 0; i < this.children.length; i++ )
 		{
 			this.children[i].dispatchEvent( { type: "enterframe" } );
@@ -167,6 +204,17 @@ Stage.prototype =
 			this.children[i].draw( this.context );
 
 			this.context.restore();
+
+			if( this.children[i].mouesEnabled )
+			{
+				this.offContext.save();
+
+				this.children[i].drawPath( this.offContext );
+				this.offContext.fillStyle = this.children[i].$hex;
+				this.offContext.fill();
+
+				this.offContext.restore();
+			}
 		}
 
 		this.reqId = requestAnimationFrame( this.update.bind( this ) );
@@ -174,6 +222,30 @@ Stage.prototype =
 }
 
 extend( EventDispatcher, Stage );
+
+function toHex( value )
+{
+	return "#" + prefix( "0", parseInt( value ).toString( 16 ), 6 ); // ff
+}
+
+function prefix( char, string, len )
+{
+	//for( ; string.length < len; string = char + string ){};
+
+	if( string.length >= len ) return string;
+
+	return prefix( char, char + string, len );
+}
+
+
+
+
+
+
+
+
+
+
 
 
 var Circle = function( radius, fillStyle )
@@ -190,7 +262,11 @@ var Circle = function( radius, fillStyle )
 
 	this.radius = radius;
 	this.fillStyle = fillStyle;
+
+	this.mouesEnabled = true;
 }
+
+var RAD = 1 * Math.PI / 180;
 
 Circle.prototype = 
 {
@@ -203,6 +279,15 @@ Circle.prototype =
 		context.beginPath();
 		context.arc( 0, 0, this.radius, 0, 2 * Math.PI );
 		context.fill();
+	},
+
+	drawPath: function( context )
+	{
+		context.translate( this.x, this.y );
+		context.scale( this.scaleX, this.scaleY );
+
+		context.beginPath();
+		context.arc( 0, 0, this.radius, 0, 360 * RAD );
 	},
 
 	onEnter: function( e )
@@ -248,8 +333,71 @@ window.onload = function()
 	//testEventDispatcher();
 	//testPendulum();
 
-	testTween();
+	//testTween();
+	testMouseEvent();
 }
+
+function testMouseEvent()
+{
+	function onOver( e )
+	{
+		e.target.scaleX = e.target.scaleY = 1.2;
+	}
+
+	function onOut( e )
+	{
+		e.target.scaleX = e.target.scaleY = 1.0;
+	}
+
+	var target;
+	
+	function onDown( e )
+	{
+		target = e.target;
+		stage.addEventListener( "mousemove", onStageMove );
+		stage.addEventListener( "mouseup", onStageUp );
+	}
+
+	function onStageMove( e )
+	{	
+		target.x = e.x;
+		target.y = e.y;
+	}
+
+	function onStageUp( e )
+	{
+		stage.removeEventListener( "mousemove", onStageMove );
+		stage.removeEventListener( "mouseup", onStageUp );
+	}
+
+	for( var i = 0, n = 100; i < n; i++ )
+	{
+		var c = new Circle( 20 * Math.random() + 5, toHex( 0xffffff * Math.random() ) );
+
+		stage.addChild( c );
+
+		c.x = stage.stageWidth * Math.random();
+		c.y = stage.stageHeight * Math.random();
+
+		c.addEventListener( "mouseover", onOver );
+		c.addEventListener( "mouseout", onOut );
+		c.addEventListener( "mousedown", onDown );
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 var Tween = function()
